@@ -1,0 +1,358 @@
+<!Doctype html>
+<html>
+  <head>
+    <title>Spot it!</title>
+		<meta charset="utf-8"> 
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=1.0">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+  </head>
+  <body>
+    <style>
+      body{
+        background-color: #fcdf6c;
+      }
+      #canvas{
+        margin:5px;
+        position: absolute;
+        z-index: 1;
+      }
+      #instructions{
+        position: absolute!important;
+        z-index: 2;
+			  width: 40%!important;
+        left:30%;
+        top: 20%;
+        font-size: 20px;
+      }
+			.dropdown{
+				float: right;
+			}
+			.dropdown-item{
+				cursor: pointer;
+				margin: 0;
+				padding-left: 10px;
+			}
+     @media screen and (max-width: 700px) {
+        #instructions{
+					position: absolute!important;
+					z-index: 2;
+					width: 90%!important;
+					left:5%;
+					top: 10%;
+					font-size: 18px;
+        }
+		 }	
+    </style>
+    <canvas id="canvas"></canvas>
+    <div id = "instructions" class="card" style="width: 20rem;">
+        <div class="card-block">
+        	<h4 class="card-title">How to play</h4>
+        	<p class="card-text">Click on the item that appears in both boxes. Find as many as you can in 30 seconds.</p>
+					<div class="dropdown">
+						<button class="btn btn-secondary dropdown-toggle" type="button" id="label" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">English</button>
+  					<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+ 					 		<p class="dropdown-item" onclick="language('e')">English</p>
+    					<p class="dropdown-item" onclick="language('c')">Chinese</p>
+							<p class="dropdown-item" onclick="language('r')">Russian</p>
+						</div>
+					</div>
+        	<a href="#" class="btn btn-primary" onclick="closeInstructions()">Ready!</a>
+       </div>
+    </div>
+    <script>
+      const WIDTH = window.innerWidth-30;
+      const HEIGHT = window.innerHeight-30;
+			if(WIDTH<250 || HEIGHT<325){
+				alert("Increase your window size and reload the page");
+			}
+      const ITEMS_PER_CARD = 8;
+      const SIZE = (ITEMS_PER_CARD<8)?Math.floor(Math.sqrt(HEIGHT/55*WIDTH)):Math.floor(Math.sqrt(HEIGHT/55*WIDTH)*8/ITEMS_PER_CARD);
+      const FONT = Math.floor(Math.sqrt(HEIGHT/200*WIDTH));
+      var instructions = document.getElementById("instructions");
+			var source = 'abcdefghijklmnopqrstuvwxyz'.split('');
+      var LENGTH = source.length;
+      const START_X = WIDTH/12-10,
+            RESTART_X = WIDTH/4,
+            BUTTON_Y = HEIGHT/8,
+            BUTTON_W = WIDTH/6+10,
+            BUTTON_H = HEIGHT/10;
+      var card1 = [],
+          card2 = [],
+          answer,
+          points = 0,
+          seconds = 30,
+          timer,
+          disabled = true,
+          reset = true,
+          instructionsClosed = false,
+					mouseX,
+					mouseY,
+					makeCards;
+      var canvas = document.getElementById("canvas");
+      document.onmousemove=function(mouse){
+        mouseX=mouse.clientX-canvas.getBoundingClientRect().left;
+        mouseY=mouse.clientY-canvas.getBoundingClientRect().top;
+        mouseMoved();
+      }
+      canvas.width = WIDTH;
+      canvas.height = HEIGHT;
+      var ctx = canvas.getContext("2d");
+      ctx.translate(0.5, 0.5)
+      canvas.addEventListener('click', function(event) { 
+        if(!disabled && instructionsClosed){
+					var r = whichCard();
+					if(r[0] !== 0){
+						if(card1[r[1]].index == answer || card2[r[1]].index == answer){
+                points++;
+                makeCards();
+            }
+					}
+        }
+        if((mouseX > START_X) && (mouseX < START_X+BUTTON_W) && (mouseY>BUTTON_Y) && (mouseY<BUTTON_Y+BUTTON_H) && disabled && reset){
+          makeCards();
+          timer = setInterval(function(){
+            seconds--;
+            updateTime();
+          }, 1000);
+          disabled = false;
+          reset = false;
+        }
+        if((mouseX > RESTART_X) && (mouseX < RESTART_X+BUTTON_W) && (mouseY>BUTTON_Y) && (mouseY<BUTTON_Y+BUTTON_H)){
+          points = 0;
+          seconds = 30;
+          clearInterval(timer);
+          makeCards();
+          disabled = true;
+          reset = true;
+        }
+        });
+      function canvasStyle(){
+        ctx.lineWidth=5;
+        ctx.strokeStyle="#0000FF";  
+        ctx.font = SIZE*0.9+"px Times New Roman";
+        ctx.textAlign="center"; 
+        ctx.textBaseline = "middle";
+      }
+      function setUpBorders(){
+        ctx.beginPath();
+        ctx.moveTo(0,HEIGHT/4);
+        ctx.lineTo(WIDTH,HEIGHT/4);
+        ctx.moveTo(WIDTH/2,HEIGHT/4);
+        ctx.lineTo(WIDTH/2,HEIGHT);
+        ctx.moveTo(5/2, 0);
+        ctx.lineTo(5/2, HEIGHT);
+        ctx.moveTo(WIDTH-5/2, 0);
+        ctx.lineTo(WIDTH-5/2, HEIGHT);
+        ctx.moveTo(0, 5/2);
+        ctx.lineTo(WIDTH, 5/2);
+        ctx.moveTo(0, HEIGHT-5/2);
+        ctx.lineTo(WIDTH, HEIGHT-5/2);
+        ctx.stroke();
+				ctx.lineWidth=1;
+      }
+      function setUpTextAndButtons(){
+        ctx.save();
+        ctx.font = FONT+"px Times New Roman";
+        ctx.fillText("Points: "+points,WIDTH/4, 10+HEIGHT/20);
+        ctx.fillText("Time", WIDTH*3/4, 10+HEIGHT/20);
+        ctx.fillStyle="#00FF00";
+        ctx.fillRect(START_X, BUTTON_Y, BUTTON_W, BUTTON_H);
+        ctx.fillStyle="#FF0000";
+        ctx.fillRect(RESTART_X, BUTTON_Y, BUTTON_W, BUTTON_H);
+        ctx.restore();
+        ctx.save();
+        ctx.font = 0.7*FONT+"px Times New Roman";
+        ctx.fillText("Begin", START_X+(BUTTON_W)/2, BUTTON_Y+BUTTON_H/2);
+        ctx.fillText("Reset", RESTART_X+(BUTTON_W)/2, BUTTON_Y+BUTTON_H/2);
+        ctx.restore();
+      }
+      function chooseEightCardOne(answer){
+        var a = [];
+        a.push(answer);
+        for(var i = 1; i<ITEMS_PER_CARD; i++){
+          var random = Math.floor(Math.random()*LENGTH);
+          while(a.indexOf(random) > -1){
+            random = Math.floor(Math.random()*LENGTH);
+          }
+          a.push(random);
+        }
+        return a;
+      }
+      function chooseEightCardTwo(c, answer){
+        var a = [];
+        a.push(answer);
+        for(var i = 1; i<ITEMS_PER_CARD; i++){
+          var random = Math.floor(Math.random()*LENGTH);
+          while(a.indexOf(random) > -1 || c.indexOf(random) > -1){
+            random = Math.floor(Math.random()*LENGTH);
+          }
+          a.push(random);
+        }
+        return a;
+      }
+      function getPositions(add){
+        var a = [];
+        for(var i = 0; i<ITEMS_PER_CARD; i++){
+          var positionCounter = 0;
+          var x = Math.floor(5 + add + Math.random()*(WIDTH/2-10-SIZE))+SIZE/2;
+          var y = Math.floor(5 + HEIGHT/4 + Math.random()*(HEIGHT*3/4-10-SIZE))+SIZE/2;
+          while(tooClose(SIZE, a, x, y, i)){
+            positionCounter++;
+            if(positionCounter > 125){
+              return false;
+            }
+            x = Math.floor(5 + add + Math.random()*(WIDTH/2-10-SIZE))+SIZE/2;
+            y = Math.floor(5 + HEIGHT/4 + Math.random()*(HEIGHT*3/4-10-SIZE))+SIZE/2;
+          }
+          a.push({
+            x:x,
+            y:y
+          });
+        }
+        return a;
+      }
+      function tooClose(size, ar, x, y, counter){
+        var boolean = false;
+        for(var i = 0; i<counter; i++){
+          if(Math.sqrt(Math.pow(ar[i].x-x, 2) + Math.pow(ar[i].y-y, 2)) < Math.floor(size*Math.sqrt(2))+2){
+            boolean = true;
+            break;
+          }
+        }
+        return boolean;
+      }
+      function assignSource(card, indexes, sources){
+        for(var i = 0; i<indexes.length; i++){
+          card[i].source = sources[indexes[i]];
+          card[i].index = indexes[i];
+        }
+        return card;
+      }
+      function drawItems(){
+				ctx.beginPath();
+        ctx.lineWidth = 1;
+        for(var i = 0; i<card1.length; i++){
+					makeChar(card1, i);
+					makeChar(card2, i);
+        }
+        ctx.stroke();
+      }
+      makeCards = function(){
+				redArray = [];
+        ctx.clearRect(0,0,canvas.width,canvas.height)
+        canvasStyle();
+        setUpBorders();
+        setUpTextAndButtons();
+				updateTime();
+        answer = Math.floor(Math.random()*LENGTH);
+        var c1 = chooseEightCardOne(answer);
+        var c2 = chooseEightCardTwo(c1, answer);
+        card1 = getPositions(0);
+        while(!card1){
+          card1 = getPositions(0);
+        };
+        card2 = getPositions(WIDTH/2);
+        while(!card2){
+          card2 = getPositions(WIDTH/2);
+        };
+        card1 = assignSource(card1, c1, source);
+        card2 = assignSource(card2, c2, source);
+        drawItems();   
+				mouseMoved();
+      }
+      function updateTime(){
+        if(seconds === 0){
+          disabled = true;
+          clearInterval(timer);
+        }
+        ctx.clearRect(WIDTH*3/4-BUTTON_W*1.8/2-12, HEIGHT/6+5-BUTTON_H/2, BUTTON_W*1.8+24, BUTTON_H);
+        ctx.save();
+        ctx.font = 0.8*FONT+"px Times New Roman";
+        ctx.fillText(seconds+" seconds", WIDTH*3/4, 5+HEIGHT/6);
+        ctx.restore();
+      }
+			function whichCard(){
+				var r = [0, -1];
+				for(var i = 0; i < card1.length; i++){
+            if(Math.sqrt(Math.pow(mouseX-card1[i].x, 2) + Math.pow(mouseY-card1[i].y, 2)) < SIZE/2){
+              r[0] = 1;
+							r[1] = i;
+            }
+            else if(Math.sqrt(Math.pow(mouseX-card2[i].x, 2) + Math.pow(mouseY-card2[i].y, 2)) < SIZE/2){
+              r[0] = 2;
+							r[1] = i;
+            }
+        }
+				return r;
+			}
+			function mouseMoved(){
+				document.getElementById('canvas').style.cursor="default";
+          if(instructionsClosed){
+          	var r = whichCard();
+						document.getElementById('canvas').style.cursor=(r[0]!==0)?"pointer":"default";
+					}
+        if((mouseX > START_X || mouseX>RESTART_X) && (mouseX < START_X+BUTTON_W || mouseX < RESTART_X+BUTTON_W) && (mouseY>BUTTON_Y) && (mouseY<BUTTON_Y+BUTTON_H)){
+          document.getElementById('canvas').style.cursor="pointer";
+        }
+			}
+			function inArray(array, r){
+				for(var i = 0; i<array.length; i++){
+					if(array[i][0]==r[0] && array[i][1]==r[1]){
+						return true;
+					}
+				}
+				return false;
+			}
+			function randomColor(r) {
+				var letters = '0123456789'.split('');
+				var color = '#';
+				for (var i = 0; i < 6; i++) {
+						color += letters[Math.floor(Math.random() * 10)];
+				}
+				return color;
+			}
+			function makeChar(c, i){
+				ctx.save();
+				ctx.fillStyle = randomColor();
+				ctx.font = Math.floor(Math.random()*SIZE*0.45+SIZE*0.55)+"px Times New Roman";
+				ctx.translate(c[i].x, c[i].y);
+				ctx.rotate(Math.random()*Math.PI/2-Math.PI/4);
+        ctx.fillText(c[i].source, 0,-3);
+				ctx.restore();
+			}
+			function language(s){
+				switch(s){
+					case 'e':
+						source = 'abcdefghijklmnopqrstuvwxyz'.split('');
+						document.getElementById("label").innerHTML = "English";
+						LENGTH = source.length;
+						break;
+					case 'c':
+						source = '人亻口水氵山日月木不女大小生姓名好子星字心火男我朋父马上下门你宀力田有土电网忄灬弓戈是市食鸟犭冫艹米豆虫牛犬夕目分点'.split('');
+						document.getElementById("label").innerHTML = "Chinese";
+						LENGTH = source.length;
+						break;
+					case 'r':
+						source = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'.split('');
+						document.getElementById("label").innerHTML = "Russian";
+						LENGTH = source.length;
+						break;
+				}
+			}
+			function closeInstructions(){
+				if(WIDTH<250 || HEIGHT<325){
+					alert("Error: resize the window and reload the page");
+				}
+				else{
+         instructionsClosed = true;
+         instructions.style.display = "none";
+         makeCards();
+				}
+      }
+			
+    </script>
+    <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js" integrity="sha384-A7FZj7v+d/sdmMqp/nOQwliLvUsJfDHW+k9Omg/a/EheAdgtzNs3hpfag6Ed950n" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+  </body>
+</html>
